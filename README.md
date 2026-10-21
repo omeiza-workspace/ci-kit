@@ -264,6 +264,27 @@ Note that a repository's `node_modules` and `vendor` directories are built
 for the host platform. Inside a Linux container on a Mac, let the gate
 reinstall them — `npm ci` and `composer install` do that as part of the run.
 
+## What it costs
+
+The kit is a program you run. It has no daemon, no file watcher, no polling
+and nothing left running when it finishes.
+
+| | |
+|---|---|
+| to install | one shell script, or one brew tap |
+| to run | bash, node, and the toolchain of the stack you are working in |
+| at rest | nothing — the kit is not running |
+| while running | one gate process, and the containers you asked for |
+
+The pre-push hook runs the gate when you push, and only then. It is not a
+watcher, and it does not sit in the background polling your files.
+
+The optional container images carry the kit and a toolchain, so a machine
+that should not be changed can still run it. They are opt-in, and they are
+not required for anything.
+
+---
+
 ## Extending it
 
 The kit is a set of contracts, not a framework. A repository extends it
