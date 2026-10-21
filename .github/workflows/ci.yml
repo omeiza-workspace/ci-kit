@@ -11,7 +11,7 @@ jobs:
     name: ShellCheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@master
         with:
@@ -30,7 +30,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run the test suite
         run: tests/run.sh
 
@@ -38,7 +38,7 @@ jobs:
     name: Container images
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build the base image
         run: docker build -f docker/Dockerfile -t ci-kit:base .
       - name: Build the toolbox image

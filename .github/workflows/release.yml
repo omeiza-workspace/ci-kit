@@ -13,7 +13,7 @@ jobs:
     name: Archive
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build the archive
         run: |
           version="${GITHUB_REF_NAME}"
@@ -29,7 +29,7 @@ jobs:
     needs: archive
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
         with:
           name: ci-kit
