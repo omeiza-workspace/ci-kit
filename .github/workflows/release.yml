@@ -19,7 +19,7 @@ jobs:
           version="${GITHUB_REF_NAME}"
           git archive --format=tar.gz --prefix="ci-kit-${version}/" \
             -o "ci-kit-${version}.tar.gz" HEAD
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ci-kit
           path: ci-kit-*.tar.gz
