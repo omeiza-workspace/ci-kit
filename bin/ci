@@ -17,7 +17,17 @@
 #
 set -euo pipefail
 
-KIT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Resolve through symlinks: the kit is often linked into ~/.local/bin.
+_ci_self="${BASH_SOURCE[0]}"
+while [ -L "$_ci_self" ]; do
+  _ci_dir="$(cd -P "$(dirname "$_ci_self")" && pwd)"
+  _ci_self="$(readlink "$_ci_self")"
+  case "$_ci_self" in
+    /*) ;;
+    *) _ci_self="$_ci_dir/$_ci_self" ;;
+  esac
+done
+KIT_ROOT="$(cd -P "$(dirname "$_ci_self")/.." && pwd)"
 export CI_KIT_ROOT="$KIT_ROOT"
 # shellcheck source=lib/paths.sh
 source "$KIT_ROOT/lib/paths.sh"

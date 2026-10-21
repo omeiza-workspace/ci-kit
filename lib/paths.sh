@@ -38,6 +38,7 @@ ci_kit_version() {
   local root; root="$(ci_kit_root)"
   if [ -f "$root/VERSION" ]; then
     tr -d '[:space:]' < "$root/VERSION"
+    printf '\n'
     return 0
   fi
   printf '0.0.0-dev\n'
