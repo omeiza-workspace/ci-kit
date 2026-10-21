@@ -6,15 +6,37 @@ supported, it is not made.
 
 The measurements come from one workspace — the one this tool was built in —
 on one machine: a 2022 Intel MacBook Pro, macOS 15.7, OrbStack as the
-container runtime. They are September 2026 figures. Your machine will differ.
+container runtime. The timings are September 2026 figures; the incident in
+section 1 is 21 October 2026. Your machine will differ, and your usage
+will differ.
 
 ---
 
 ## 1. The case that made the case
 
+### The bill
+
 The workspace this tool came from has several repositories with GitHub
-Actions workflows. On 21 October 2026, the largest of them, `bytesickle-web`,
-had **28 failing runs out of the last 30**.
+Actions workflows, all on one account. On 21 October 2026 that account ran
+out of its included runner minutes:
+
+> You have used 100% of the Actions minutes included for the
+> omeiza-workspace account
+>
+> **2,000 min used / 2,000 min included**
+>
+> You'll be billed for usage beyond the included amount — unless a $0 budget
+> is set for Actions, which blocks further usage until it resets. Your
+> usage will reset in 11 days on November 01, 2026.
+
+So the account had **eleven days of pipeline left to run and no minutes to
+run it on**. Every job from that point either cost money per minute or did
+not start at all.
+
+### The consequence
+
+The largest repository in the workspace, `bytesickle-web`, had **28 failing
+runs out of the last 30**.
 
 None of them failed on code.
 
@@ -27,16 +49,34 @@ X The job was not started because recent account payments have failed
 GitHub had refused to start the jobs. Every run failed in about six seconds.
 The same annotation was on the failures in `bytesickle-core`.
 
+The cause was the bill, not the code. The included minutes were gone, the
+spending limit that would have allowed paid overage had been reached, and
+the jobs were therefore never allocated a runner at all.
+
 Taken at face value, a red build is a red build: the developer assumes their
 change broke something, and either fixes a problem that does not exist or
 pushes again and waits. What actually happened was that **nothing was
 verified at all**, and the reason was one line of text in a log nobody reads.
+
+The failure was not a flake and it was not a regression. It was an
+infrastructure ceiling, and it looked exactly like a broken build — which
+is the part that makes it worth writing down.
 
 | | Remote CI | Local gate |
 |---|---|---|
 | Feedback on a push that breaks the build | 4–12 min, billed | ~100 s, free |
 | Feedback when the runner never starts | 6 s, and it says why — if you read it | ~100 s, and it says why |
 | Feedback when the runner never starts and you are not reading the log | never | ~100 s |
+
+**Why the local gate is the answer and not merely a convenience.** For the
+eleven days until the reset, the remote runner was either unavailable or
+billable per minute. The checks that do not need shared state — the lint,
+the type check, the unit tests, the workflow files themselves — no longer
+needed a runner at all. The gate is free, it is local, and it does not
+care what the account's allowance is doing.
+
+That is the whole of the design argument, and it was not theoretical. It was
+forced by a specific email with a specific date on it.
 
 **How this was measured.** The run list came from the GitHub API
 (`gh run list --repo omeiza-workspace/bytesickle-web --limit 30`) and the
@@ -164,10 +204,17 @@ actually uses and four times below the 7.9% it exists to catch.
 
 - **No speed claim.** The local gate was measured at roughly twice the wall
   clock of a CI runner on this hardware. See section 2.
-- **No runner-minute savings are claimed.** In the case above, the runner
-  never started, so no minutes were billed. Where CI *does* run, a local
-  gate reduces the number of red builds, not the number of green ones. Green
-  builds still belong on the runner.
+- **No runner-minute savings are claimed in general.** Where CI *does* run,
+  a local gate reduces the number of red builds, not the number of green
+  ones. Green builds still belong on the runner.
+
+  The one thing that can be said precisely is narrower: **for the checks
+  that move to the local gate, the metered minutes for those checks go to
+  zero**, because they no longer need a runner. That is not a general
+  saving on the pipeline — it is the cost of a specific set of jobs going
+  to exactly zero. In the case in section 1 the runner never started at
+  all, so nothing was billed in the first place; the local gate is what
+  kept the work moving during the eleven days before the reset.
 - **The local gate is not a replacement for CI.** It does not test the
   runner, the matrix, the scheduled jobs, or the deployment. It is a faster
   answer to "did I break something?".
