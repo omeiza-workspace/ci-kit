@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CI Kit — run your CI on your laptop, before you push</title>
+<meta name="description" content="CI Kit gives a repository a local gate that mirrors what the GitHub Actions workflows do: the same installs, the same linters, the same tests.">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🔧</text></svg>">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <nav>
+      <span class="brand">CI Kit</span>
+      <a href="#why">Why</a>
+      <a href="#how">How it works</a>
+      <a href="#install">Install</a>
+      <a href="#use">Use it</a>
+      <a href="https://github.com/omeiza-workspace/ci-kit">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="hero">
+    <h1>Run your CI on your laptop, before you push.</h1>
+    <p>
+      CI Kit gives a repository a local gate that mirrors what the GitHub
+      Actions workflows do: the same installs, the same linters, the same
+      type checks, the same tests. It also runs the workflows themselves
+      locally through act, so the YAML can be checked without waiting for a
+      runner.
+    </p>
+    <div class="actions">
+      <a class="btn primary" href="https://github.com/omeiza-workspace/ci-kit">Get it</a>
+      <a class="btn" href="https://github.com/omeiza-workspace/ci-kit#readme">Read the README</a>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b>1 copy</b><span>of the setup — the local run and the runner share it</span></div>
+    <div class="stat"><b>0 drift</b><span>between what runs locally and what runs in CI</span></div>
+    <div class="stat"><b>Any stack</b><span>the gates are driven by what the repository contains</span></div>
+    <div class="stat"><b>90 seconds</b><span>a gate that used to be a five-minute round trip</span></div>
+  </div>
+
+  <section id="why">
+    <h2>Why</h2>
+    <p class="lede">
+      CI feedback is slow, and it is slow at the worst moment: after you have
+      already pushed.
+    </p>
+    <p>
+      A gate that runs in ninety seconds on your machine turns a five-minute
+      round trip into a coffee break, and it catches the class of failure
+      that CI is worst at — the one that only happens on a fresh clone.
+    </p>
+    <p>
+      The hard part is not running the commands. It is keeping the local run
+      and the CI run from drifting apart. That is what this kit is for: the
+      setup steps live in the repository, in <code>scripts/ci/</code>, and both
+      the Makefile and the workflow call them.
+    </p>
+  </section>
+
+  <section id="how">
+    <h2>How it works</h2>
+    <pre><code>   developer                repository                    runner
+      |                        |                             |
+      |   make ci              |                             |
+      |----------------------->|                             |
+      |                        |  scripts/ci/*.sh            |
+      |                        |  the setup and the gates    |
+      |                        |         |                   |
+      |                        |         +------------------->|  .github/workflows
+      |                        |             the same script |
+      |                        |                             |
+      |   the same script, so the local run and the runner  |
+      |   cannot disagree about what the code needs         |</code></pre>
+    <p>
+      There is one copy of the setup. It cannot disagree with itself.
+    </p>
+    <div class="grid">
+      <div class="card">
+        <h4>Derived, not guessed</h4>
+        <p>A stack runs the gates it declares. If a project has no lint step,
+        the kit does not invent one.</p>
+      </div>
+      <div class="card">
+        <h4>The repository owns its setup</h4>
+        <p>Anything a workflow and a laptop both need belongs in the
+        repository, not in the kit.</p>
+      </div>
+      <div class="card">
+        <h4>Nothing is written outside the repository</h4>
+        <p>No files, no hooks, no settings — unless the command says so.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <h2>Install</h2>
+    <pre><code>curl -fsSL https://raw.githubusercontent.com/omeiza-workspace/ci-kit/main/bin/install.sh | sh</code></pre>
+    <p>
+      That puts the kit in <code>~/.local/share/ci-kit</code> and links
+      <code>ci</code> into <code>~/.local/bin</code>. From a clone:
+    </p>
+    <pre><code>git clone https://github.com/omeiza-workspace/ci-kit.git ~/.local/share/ci-kit
+ln -s ~/.local/share/ci-kit/bin/ci ~/.local/bin/ci</code></pre>
+    <p>Homebrew:</p>
+    <pre><code>brew tap omeiza-workspace/tap && brew install ci-kit</code></pre>
+  </section>
+
+  <section id="use">
+    <h2>Use it</h2>
+    <pre><code>make            # list the targets
+make ci         # the full local gate
+make ci-fast    # lint and type checks only
+make doctor     # is my toolchain the same as the one CI pins?
+make act W=ci.yml J=test</code></pre>
+
+    <h3>With the mock services</h3>
+    <p>
+      [API Mock Services](https://github.com/omeiza-workspace/api-mock-services)
+      is the mock engine the gates can point at — the payment gateways, the
+      identity checks, the email, the DNS, the messaging, the AI and the
+      storage, offline and with no dependencies. Configure it in
+      <code>.ci/ci.json</code>, and the kit starts the mocks in the
+      background, waits for them to answer, and shuts them down again.
+    </p>
+    <pre><code>make mocks-up      # start the mocks the tests need
+make mocks-status  # are they answering?
+make mocks-down    # stop them</code></pre>
+  </section>
+
+  <section>
+    <h2>Support the project</h2>
+    <p>
+      CI Kit is maintained in the open, and that takes time. If it has saved
+      you the commit, push, wait, fail loop, or given your team back an hour
+      a week of runner minutes, consider sponsoring the maintenance.
+    </p>
+    <div class="actions">
+      <a class="btn primary" href="https://github.com/sponsors/omeiza-workspace">Sponsor on GitHub</a>
+    </div>
+    <p>
+      There is no paid tier and nothing is gated: the kit stays MIT, and every
+      feature in it stays free.
+    </p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap row">
+    <span>MIT licensed. Plain bash, on purpose.</span>
+    <span>
+      <a href="https://github.com/omeiza-workspace/ci-kit">Source</a> ·
+      <a href="https://github.com/omeiza-workspace/api-mock-services">Works beautifully with API Mock Services →</a>
+    </span>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -25,6 +25,27 @@ make doctor     # is my toolchain the same as the one CI pins?
 make act W=ci.yml J=test
 ```
 
+## Evidence
+
+The numbers in this README are measured, and the
+[evidence document](docs/EVIDENCE.md) says how each one was taken.
+
+The clearest case came from the workspace this tool was built in. On one
+morning, twenty-eight of the last thirty CI runs on the largest repository
+had failed — and not one of them failed on code. GitHub had refused to start
+the jobs:
+
+> *The job was not started because recent account payments have failed or
+> your spending limit needs to be increased.*
+
+Every commit since had gone unverified, and the signal looked exactly like a
+red build. A local gate gives the same answer for free, in ninety seconds,
+and says plainly that the job never ran.
+
+The same local gate found a secret-scan allowlist entry that no longer
+matched its file, ninety-three dependency advisories, eight of them
+critical, and build artefacts tripping a working-tree scan.
+
 ## Why
 
 CI feedback is slow, and it is slow at the worst moment: after you have
@@ -302,6 +323,12 @@ The rule is that the kit never needs to know about a repository, and a
 repository never needs to change the kit. A language the kit does not know
 still works: the gates are derived from what the repository contains, and a
 repository that wants something else ships its own `gate.sh`.
+
+## Documentation
+
+- [The evidence](docs/EVIDENCE.md) — every measurement, and how it was taken
+- [The architecture](docs/ARCHITECTURE.md) — why it is shaped this way
+- [The site](https://omeiza-workspace.github.io/ci-kit/) — the same, with a layout
 
 ## What it does not do
 
