@@ -328,6 +328,29 @@ The kit lints itself with ShellCheck in CI, on Ubuntu and macOS.
 
 Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Security: [SECURITY.md](SECURITY.md).
 
+## Works beautifully with API Mock Services
+
+The kit runs a repository's gates locally, before anything reaches a runner.
+[API Mock Services](https://github.com/omeiza-workspace/api-mock-services) is
+the mock engine those gates can point at — the payment gateways, the identity
+checks, the email, the DNS, the messaging, the AI and the storage, offline and
+with no dependencies.
+
+Configure it in `.ci/ci.json`, and `make mocks-up`, `make mocks-status` and
+`make mocks-down` start, check and stop them around your test run.
+
+```json
+{
+  "mocks": {
+    "command": "node bin/api-mock-services.js start stripe paystack",
+    "endpoints": {
+      "stripe": "http://127.0.0.1:4001",
+      "paystack": "http://127.0.0.1:4005"
+    }
+  }
+}
+```
+
 ## Support the project
 
 CI Kit is maintained in the open, and it costs time.
