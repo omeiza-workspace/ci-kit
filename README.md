@@ -39,8 +39,13 @@ the jobs:
 > your spending limit needs to be increased.*
 
 Every commit since had gone unverified, and the signal looked exactly like a
-red build. A local gate gives the same answer for free, in ninety seconds,
-and says plainly that the job never ran.
+red build. A local gate gives the same answer for free, in about a hundred
+seconds, and says plainly that the job never ran.
+
+The local gate is **not** faster than a CI runner — measured on the same
+work, it took 99 s on a laptop against 43–48 s on a runner. It is a
+*guarantee* of feedback rather than a speed-up, and the evidence document
+says so in full.
 
 The same local gate found a secret-scan allowlist entry that no longer
 matched its file, ninety-three dependency advisories, eight of them

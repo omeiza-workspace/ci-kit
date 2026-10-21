@@ -267,6 +267,24 @@ footer a {
   color: var(--muted);
 }
 
+/* A note set apart from the flow: something the reader should not skim. */
+.note {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background: var(--card);
+  padding: .9rem 1.1rem;
+  margin: 1.25rem 0;
+}
+
+.note p {
+  margin: 0;
+}
+
+.note p + p {
+  margin-top: .6rem;
+}
+
 footer .row {
   display: flex;
   flex-wrap: wrap;

@@ -45,8 +45,44 @@
     <div class="stat"><b>1 copy</b><span>of the setup — the local run and the runner share it</span></div>
     <div class="stat"><b>0 drift</b><span>between what runs locally and what runs in CI</span></div>
     <div class="stat"><b>Any stack</b><span>the gates are driven by what the repository contains</span></div>
-    <div class="stat"><b>90 seconds</b><span>a gate that used to be a five-minute round trip</span></div>
+    <div class="stat"><b>~100 s</b><span>for the gate to run on your own machine</span></div>
   </div>
+
+  <section id="evidence">
+    <h2>The evidence</h2>
+    <p class="lede">
+      Every number is measured, and the
+      <a href="https://github.com/omeiza-workspace/ci-kit/blob/main/docs/EVIDENCE.md">evidence document</a>
+      says how each one was taken.
+    </p>
+    <p>
+      The clearest case came from the workspace this tool was built in. On one
+      morning, twenty-eight of the last thirty CI runs on the largest
+      repository had failed — and not one of them failed on code. GitHub had
+      refused to start the jobs:
+    </p>
+    <pre><code>The job was not started because recent account payments have failed
+or your spending limit needs to be increased.</code></pre>
+    <p>
+      Every commit since had gone unverified, and the signal looked exactly
+      like a red build. A local gate gives the same answer for free, in about
+      a hundred seconds, and says plainly that the job never ran.
+    </p>
+    <p>
+      The same local gate found a secret-scan allowlist entry that no longer
+      matched its file, ninety-three dependency advisories — eight of them
+      critical — and build artefacts tripping a working-tree scan.
+    </p>
+    <div class="note">
+      <p>
+        <strong>And it is not faster than a CI runner.</strong> Measured on
+        the same work, the local gate took 99&nbsp;s on a 2022 Intel laptop
+        against 43–48&nbsp;s on a GitHub runner. A runner has more cores and
+        faster storage. The local gate buys a <em>guarantee</em> of feedback,
+        not a speed-up.
+      </p>
+    </div>
+  </section>
 
   <section id="why">
     <h2>Why</h2>
@@ -55,9 +91,10 @@
       already pushed.
     </p>
     <p>
-      A gate that runs in ninety seconds on your machine turns a five-minute
-      round trip into a coffee break, and it catches the class of failure
-      that CI is worst at — the one that only happens on a fresh clone.
+      A gate that runs in about a hundred seconds on your machine turns a
+      five-minute round trip into a coffee break, and it catches the class of
+      failure that CI is worst at — the one that only happens on a fresh
+      clone.
     </p>
     <p>
       The hard part is not running the commands. It is keeping the local run
@@ -125,16 +162,35 @@ make act W=ci.yml J=test</code></pre>
 
     <h3>With the mock services</h3>
     <p>
-      [API Mock Services](https://github.com/omeiza-workspace/api-mock-services)
+      <a href="https://github.com/omeiza-workspace/api-mock-services">API Mock Services</a>
       is the mock engine the gates can point at — the payment gateways, the
       identity checks, the email, the DNS, the messaging, the AI and the
       storage, offline and with no dependencies. Configure it in
-      <code>.ci/ci.json</code>, and the kit starts the mocks in the
-      background, waits for them to answer, and shuts them down again.
+      <code>.ci/ci.json</code>, and the kit starts the mocks when you ask it
+      to, waits for them to answer, and tells you which one is missing if
+      they are not.
     </p>
     <pre><code>make mocks-up      # start the mocks the tests need
 make mocks-status  # are they answering?
 make mocks-down    # stop them</code></pre>
+    <p>
+      The gate <em>checks</em> the mocks rather than starting them. A gate
+      that quietly starts services hides the reason a test failed.
+    </p>
+  </section>
+
+  <section>
+    <h2>Read more</h2>
+    <p>
+      <a href="https://github.com/omeiza-workspace/ci-kit/blob/main/docs/EVIDENCE.md">The evidence</a>
+      — every measurement, how it was taken, and what is not claimed.
+      <br>
+      <a href="https://github.com/omeiza-workspace/ci-kit/blob/main/docs/ARCHITECTURE.md">The architecture</a>
+      — why it is shaped this way, and what it costs.
+      <br>
+      <a href="https://github.com/omeiza-workspace/ci-kit#readme">The README</a>
+      — the whole thing, in a terminal.
+    </p>
   </section>
 
   <section>

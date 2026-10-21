@@ -5,17 +5,16 @@ was taken. Where a number is an estimate, it says so. Where a claim is not
 supported, it is not made.
 
 The measurements come from one workspace — the one this tool was built in —
-on one machine, a 2022 Intel MacBook Pro running macOS 15.7 with OrbStack as
-the container runtime. They are September 2026 figures. Your machine will
-differ; the shape of the result should not.
+on one machine: a 2022 Intel MacBook Pro, macOS 15.7, OrbStack as the
+container runtime. They are September 2026 figures. Your machine will differ.
 
 ---
 
 ## 1. The case that made the case
 
-The workspace this tool came from has seven repositories with GitHub Actions
-workflows. On 21 October 2026, the largest of them, `bytesickle-web`, had
-**28 failing runs out of the last 30**.
+The workspace this tool came from has several repositories with GitHub
+Actions workflows. On 21 October 2026, the largest of them, `bytesickle-web`,
+had **28 failing runs out of the last 30**.
 
 None of them failed on code.
 
@@ -35,38 +34,56 @@ verified at all**, and the reason was one line of text in a log nobody reads.
 
 | | Remote CI | Local gate |
 |---|---|---|
-| Feedback on a push that breaks the build | 4–12 min, billed | 90 s, free |
-| Feedback when the runner never starts | 6 s, and it says why — if you read it | 90 s, and it says why |
-| Feedback when the runner never starts and you are not reading the log | never | 90 s |
+| Feedback on a push that breaks the build | 4–12 min, billed | ~100 s, free |
+| Feedback when the runner never starts | 6 s, and it says why — if you read it | ~100 s, and it says why |
+| Feedback when the runner never starts and you are not reading the log | never | ~100 s |
 
 **How this was measured.** The run list came from the GitHub API
-(`gh run list --repo omeiza-workspace/bytesickle-web --limit 30`), and the
+(`gh run list --repo omeiza-workspace/bytesickle-web --limit 30`) and the
 annotation from `gh run view --log-failed`. The 4–12 minute figure is the
-range of wall-clock times of the successful workflow runs in the same
-repositories, which include the queue, the runner setup, and the checkout.
+range of wall-clock times of successful workflow runs in the same
+repositories, which include the queue, the runner setup and the checkout.
 
 **What this shows.** The local gate is not a cheaper CI. It is a CI that
-cannot be turned off by a billing decision, and that costs nothing to run
+cannot be switched off by a billing decision, and that costs nothing to run
 when the remote one is unavailable.
 
 ---
 
-## 2. The gate is fast enough to be a habit
+## 2. The local gate is *not* faster than a CI runner
 
-A local gate is only useful if it is fast enough to run before every push.
-These are wall-clock times, measured with `/usr/bin/time -p` on the machine
-described above.
+This is the honest part, and it is the part most tools like this leave out.
 
-| Gate | Wall clock | What it covers |
+| Gate | This laptop | GitHub runner |
 |---|---|---|
-| `xenport-node-core` — `make ci` | see below | `npm ci`, two type checks, vitest, the build |
-| `bytesickle-web` — frontend, fast | 3 min 22 s | secret scan, `vue-tsc --noEmit`, eslint |
-| `bytesickle-web` — frontend, full | fails at the audit | `npm ci`, secret scan, `npm audit`, types, lint, vitest, build |
+| `xenport-node-core` — `npm ci`, two type checks, vitest, the build | **99 s** | **43–48 s** |
+| `bytesickle-web` — secret scan, `vue-tsc --noEmit`, eslint | **105 s** | the job did not start |
 
-The `bytesickle-web` numbers are dominated by `vue-tsc`, which is a type
-checker over a large Vue codebase and is slow everywhere, not just here. The
-same job on a GitHub runner is not faster at the same work; it is the same
-work, plus a queue and a checkout.
+A modern GitHub runner has more cores and faster storage than a 2022 Intel
+laptop, and for work that is mostly `npm ci` and TypeScript, it wins. The
+local gate on this machine is roughly twice the wall clock of the remote
+job.
+
+**How this was measured.** `/usr/bin/time -p` around `make ci` and around
+the gate script. The first attempt was discarded: the machine had a load
+average of 212 from an unrelated build running, and the same gate took 194 s
+under that load and 105 s without it. Both numbers are given here because
+the first one is what a measurement looks like when nobody checks the load.
+
+**So what is the local gate for?**
+
+It is not a speed optimisation. It is a **guarantee of feedback**, and it
+buys that in three ways:
+
+1. **It always runs.** The remote one did not, for a week, and nobody
+   noticed what that meant.
+2. **It runs before the push.** A broken commit never reaches the branch.
+3. **It is the same script**, so its verdict and the workflow's verdict agree
+   by construction rather than by luck.
+
+If your CI is fast, healthy and free, the local gate is a convenience. If
+your CI bills by the minute, or is red for reasons unrelated to your code,
+it is the only signal you have.
 
 ---
 
@@ -85,7 +102,7 @@ were not starting, and nobody could tell the two apart.
 
 **Ninety-three dependency advisories.** `npm audit --audit-level=high` is in
 the workflow. The local gate ran it and it failed: 93 advisories, 53 high,
-8 critical. The same command that CI runs.
+8 critical. The same command CI runs.
 
 **Build artefacts tripping a working-tree scan.** Playwright traces under
 `test-results/` contain a token, and a working-tree secret scan reads them.
@@ -125,18 +142,20 @@ nobody checks erodes; this one is checked on every build.
 
 ## 5. What is not claimed
 
+- **No speed claim.** The local gate was measured at roughly twice the wall
+  clock of a CI runner on this hardware. See section 2.
 - **No runner-minute savings are claimed.** In the case above, the runner
-  never started, so no minutes were billed. Where CI *does* run, a local gate
-  reduces the number of red builds, not the number of green ones. Green
+  never started, so no minutes were billed. Where CI *does* run, a local
+  gate reduces the number of red builds, not the number of green ones. Green
   builds still belong on the runner.
-- **No speed claim beyond the measurements.** The gates in the table were run
-  on one machine, on one codebase. They will differ elsewhere.
 - **The local gate is not a replacement for CI.** It does not test the
   runner, the matrix, the scheduled jobs, or the deployment. It is a faster
   answer to "did I break something?".
 - **The mock engine is not a replacement for a sandbox.** It answers the
   calls a test makes. It does not model a provider's business rules, and it
   is not a staging environment.
+- **The numbers are from one machine and one workspace.** They are a
+  starting point for your own measurements, not a benchmark.
 
 ---
 
