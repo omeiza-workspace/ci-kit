@@ -116,27 +116,47 @@ on a laptop, with no runner minutes spent.
 ## 4. The mock engine weighs what it claims to
 
 The mock engine this tool works with was measured against the four
-containers it replaced, on the same machine, with all nine providers
+containers it replaced, on the same machine, with every mock it carries
 running.
 
 | | api-mock-services | four compose containers |
 |---|---|---|
 | processes | 1 | 4 |
-| memory | 50 MB | 250 MB |
+| memory | 50–51 MB | 250 MB |
 | of which the OpenAPI proxy | — | 214 MB, and it does not settle |
-| idle CPU | 0.0% | 7.9%, almost all the proxy |
-| time to first request answered | 465 ms | 20 s and rising |
+| idle CPU | 0–0.5% | 7.9%, almost all the proxy |
+| time to first request answered | 0.4–1.4 s | 20 s and rising |
 | things to start, stop and clean up | 1 | 4 |
 
-**How this was measured.** The engine was started with all nine providers
-and sampled with `ps` for resident size, and with two `ps -o time=` samples
-five seconds apart for CPU. The containers were started with
+**How this was measured.** The engine was started with every mock it
+carries and sampled with `ps` for resident size, and with two `ps -o
+time=` samples ten seconds apart for CPU. The containers were started with
 `docker compose up -d` and sampled with `docker stats --no-stream`, once
 immediately and once after they had settled.
 
-The numbers are now a build gate: `scripts/footprint.js` measures the engine
-and fails when it exceeds 100 MB, 5 s of startup, or 1% idle CPU. A promise
-nobody checks erodes; this one is checked on every build.
+**Why a range, and not a single number.** The first version of this
+document quoted 465 ms for the time to the first request, and the mock
+engine's own README quoted 1.4 s for the same measurement. Both were real
+samples of the same thing, taken on different machines at different times,
+and the measurement moves by a factor of three depending on what the
+machine is doing. A single sample presented as *the* figure is not a
+measurement — it is a number that happened to be true once.
+
+So both documents now quote a range, and both name the script that
+produces it: `npm run footprint` in the mock engine's repository. A reader
+can run it and see a figure that lands inside the range, and that is the
+only property which makes a published number worth anything.
+
+**The gate.** The numbers are a build gate: `scripts/footprint.js` measures
+the engine and fails when it exceeds 100 MB, 5 s of startup, or 2% idle CPU.
+A promise nobody checks erodes; this one is checked on every build.
+
+The idle budget was 1% while the sampling window was three seconds, and
+that combination made the gate fail intermittently — two runs in three on an
+idle machine. A gate that fails sometimes is worse than no gate, because it
+teaches people to retry it instead of reading it. The window is now ten
+seconds and the budget 2%, which is four times above what the engine
+actually uses and four times below the 7.9% it exists to catch.
 
 ---
 
