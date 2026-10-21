@@ -1,0 +1,391 @@
+#!/usr/bin/env bash
+#
+# ci — the local CI kit.
+#
+#   ci doctor                 audit the toolchain against what the workflows pin
+#   ci gate [--fast]          run the local CI gate for every stack in this repo
+#   ci act [workflow] [job]   run a workflow locally with act
+#   ci act-list               list the workflows and their jobs
+#   ci services up|down|status|logs
+#                             manage the local service containers
+#   ci hooks install|uninstall|status
+#                             wire the pre-push gate
+#   ci init [--vendor]        scaffold the kit into the current repository
+#   ci config                 show the resolved configuration
+#   ci env                    show the env files that feed the local runs
+#   ci version                print the kit version
+#
+set -euo pipefail
+
+KIT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export CI_KIT_ROOT="$KIT_ROOT"
+# shellcheck source=lib/paths.sh
+source "$KIT_ROOT/lib/paths.sh"
+# shellcheck source=lib/common.sh
+source "$KIT_ROOT/lib/common.sh"
+# shellcheck source=lib/config.sh
+source "$KIT_ROOT/lib/config.sh"
+# shellcheck source=lib/services.sh
+source "$KIT_ROOT/lib/services.sh"
+# shellcheck source=lib/stack.sh
+source "$KIT_ROOT/lib/stack.sh"
+# shellcheck source=lib/node.sh
+source "$KIT_ROOT/lib/node.sh"
+# shellcheck source=lib/php.sh
+source "$KIT_ROOT/lib/php.sh"
+# shellcheck source=lib/go.sh
+source "$KIT_ROOT/lib/go.sh"
+# shellcheck source=lib/act.sh
+source "$KIT_ROOT/lib/act.sh"
+
+CI_ROOT="$(ci_repo_root "$PWD")"
+export CI_ROOT
+
+# ---------------------------------------------------------------- doctor ---
+
+cmd_doctor() {
+  local rc=0
+
+  ci_section "Toolchain"
+
+  if ci_have docker; then
+    local server
+    server="$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo '?')"
+    ci_ok "docker    $server"
+  else
+    ci_err "docker    missing"
+    rc=1
+  fi
+
+  if ci_have act; then
+    ci_ok "act       $(act --version 2>/dev/null | head -1)"
+  else
+    ci_warn "act       missing (brew install act) — the act targets will not run"
+  fi
+
+  if ci_have php; then
+    ci_ok "php       $(php -r 'echo PHP_VERSION;' 2>/dev/null)"
+  else
+    ci_warn "php       missing"
+  fi
+
+  if ci_have composer; then
+    ci_ok "composer  $(composer --version 2>/dev/null | head -1 | awk '{print $3}')"
+  else
+    ci_warn "composer  missing"
+  fi
+
+  if ci_have node; then
+    ci_ok "node      $(node --version 2>/dev/null)"
+  else
+    ci_warn "node      missing"
+  fi
+
+  if ci_have npm; then
+    ci_ok "npm       $(npm --version 2>/dev/null)"
+  else
+    ci_warn "npm       missing"
+  fi
+
+  if ci_have go; then
+    ci_ok "go        $(go version 2>/dev/null | awk '{print $3}')"
+  else
+    ci_warn "go        missing"
+  fi
+
+  if [ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]; then
+    ci_ok "nvm       available"
+  fi
+
+  # --- do the local versions match the ones CI pins? ---------------------
+  ci_section "Local vs CI pins"
+
+  local pin local_ver
+
+  pin="$(grep -rhoE "php-version: *'?\"?[0-9.]+" "$CI_ROOT/.github/workflows" 2>/dev/null | grep -oE '[0-9.]+$' | sort -u | tr '\n' ' ')"
+  if [ -n "$pin" ]; then
+    local_ver="$(php -r 'echo PHP_VERSION;' 2>/dev/null || echo none)"
+    ci_log "workflows pin PHP:   $pin"
+    ci_log "local PHP:          $local_ver"
+    case " $pin " in
+      *" $local_ver "*) ci_ok "PHP version matches" ;;
+      *) ci_warn "PHP version differs from the pin — local results may not match CI" ;;
+    esac
+  fi
+
+  pin="$(grep -rhoE "node-version: *'?\"?[0-9.]+" "$CI_ROOT/.github/workflows" 2>/dev/null | grep -oE '[0-9.]+$' | sort -u | tr '\n' ' ')"
+  if [ -n "$pin" ]; then
+    local_ver="$(node --version 2>/dev/null | tr -d 'v' || echo none)"
+    ci_log "workflows pin Node:  $pin"
+    ci_log "local Node:         $local_ver"
+    case " $pin " in
+      *" $local_ver "*) ci_ok "Node version matches" ;;
+      *)
+        ci_warn "Node version differs from the pin"
+        if [ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]; then
+          ci_dim "fix: nvm use $pin"
+        fi
+        ;;
+    esac
+  fi
+
+  if [ "$rc" -eq 0 ]; then
+    ci_ok "toolchain is ready"
+  fi
+  return $rc
+}
+
+# ------------------------------------------------------------------ gate ---
+
+cmd_gate() {
+  local fast=0 only="" stacks
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --fast) fast=1; shift ;;
+      --stack=*) only="${1#*=}"; shift ;;
+      *) ci_die "unknown option for gate: $1" ;;
+    esac
+  done
+
+  stacks="$(ci_detect_stacks "$CI_ROOT")"
+  [ -z "$stacks" ] && ci_die "no recognised stack in $CI_ROOT (expected package.json, composer.json, nuxt.config.* or go.mod)"
+
+  local configured
+  configured="$(ci_config 'config.stack ? config.stack.join(" ") : ""')"
+  [ -n "$configured" ] && stacks="$configured"
+
+  if [ -n "$only" ]; then
+    stacks="$(printf '%s\n' "$stacks" | grep -x "$only" || true)"
+    [ -z "$stacks" ] && ci_die "stack '$only' not present in $CI_ROOT"
+  fi
+
+  ci_log "stacks: $(printf '%s ' $stacks)"
+  [ "$fast" = "1" ] && ci_log "mode: fast (lint and type checks only)"
+
+  local rc=0 s
+
+  # A repository that wants full control of its gate ships scripts/ci/gate.sh.
+  # It lives in the repository, so it runs the same way on a laptop and on a
+  # GitHub runner.
+  if [ -f "$CI_ROOT/scripts/ci/gate.sh" ]; then
+    ci_section "Repository gate"
+    bash "$CI_ROOT/scripts/ci/gate.sh" "$fast" || rc=1
+  else
+    for s in $stacks; do
+      case "$s" in
+        node) ci_node_gates "$CI_ROOT" "$fast" || rc=1 ;;
+        nuxt) ci_nuxt_gates "$CI_ROOT" "$fast" || rc=1 ;;
+        php)  ci_php_gates  "$CI_ROOT" "$fast" || rc=1 ;;
+        go)   ci_go_gates   "$CI_ROOT" "$fast" || rc=1 ;;
+      esac
+    done
+
+    # A repository can add steps to the automatic gate with this hook.
+    if [ -f "$CI_ROOT/scripts/ci/gate-extra.sh" ]; then
+      ci_section "Repository extra gates"
+      bash "$CI_ROOT/scripts/ci/gate-extra.sh" "$fast" || rc=1
+    fi
+  fi
+
+  echo
+  if [ "$rc" -eq 0 ]; then
+    ci_ok "gate green"
+  else
+    ci_err "gate failed"
+  fi
+  return $rc
+}
+
+# --------------------------------------------------------------- services ---
+
+cmd_services() {
+  local sub="${1:-up}"; shift || true
+  # A repository can name the services it needs in .ci/ci.json.
+  if [ "$sub" = "up" ] && [ "$#" -eq 0 ]; then
+    local configured
+    configured="$(ci_config_services)"
+    [ -n "$configured" ] && set -- $configured
+  fi
+  case "$sub" in
+    up)     ci_services_up "$@" ;;
+    down)   ci_services_down "$@" ;;
+    status) ci_services_status ;;
+    logs)
+      local compose_cmd compose_file
+      compose_cmd="$(ci_compose_cmd)"
+      compose_file="$(ci_compose_file "$CI_ROOT")"
+      ci_run $compose_cmd -f "$compose_file" logs -f "$@"
+      ;;
+    *)      ci_die "unknown services subcommand: $sub" ;;
+  esac
+}
+
+# ------------------------------------------------------------------ hooks ---
+
+cmd_hooks() {
+  local sub="${1:-status}" root="$CI_ROOT"
+  local hook_dir="$root/.githooks"
+  local hook_file="$hook_dir/pre-push"
+
+  case "$sub" in
+    install)
+      mkdir -p "$hook_dir"
+      cat > "$hook_file" <<'HOOK'
+#!/usr/bin/env bash
+# Runs the local CI gate before a push. Installed by the CI kit.
+set -e
+if ! command -v make >/dev/null 2>&1; then
+  exit 0
+fi
+if [ -f Makefile ] || [ -f makefile ]; then
+  echo "[pre-push] running the local CI gate..."
+  make ci
+fi
+HOOK
+      chmod +x "$hook_file"
+      git -C "$root" config core.hooksPath .githooks 2>/dev/null || ci_warn "not a git repository — hook written but not wired"
+      ci_ok "pre-push hook installed (core.hooksPath=.githooks)"
+      ;;
+    uninstall)
+      git -C "$root" config --unset core.hooksPath 2>/dev/null || true
+      rm -f "$hook_file"
+      ci_ok "pre-push hook removed"
+      ;;
+    status)
+      local configured
+      configured="$(git -C "$root" config core.hooksPath 2>/dev/null || echo none)"
+      ci_log "core.hooksPath: $configured"
+      [ -f "$hook_file" ] && ci_log "hook file: $hook_file (present)" || ci_log "hook file: (absent)"
+      ;;
+    *) ci_die "unknown hooks subcommand: $sub" ;;
+  esac
+}
+
+# ------------------------------------------------------------------- init ---
+
+cmd_init() {
+  local root="$CI_ROOT" vendor=0
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --vendor) vendor=1; shift ;;
+      *) ci_die "unknown option for init: $1" ;;
+    esac
+  done
+
+  [ -d "$root" ] || ci_die "no repository found"
+
+  ci_log "scaffolding the CI kit into $root"
+
+  mkdir -p "$root/.ci" "$root/scripts/ci"
+
+  if [ ! -f "$root/.ci/ci.mk" ]; then
+    cp "$KIT_ROOT/templates/ci.mk" "$root/.ci/ci.mk"
+    ci_ok "created .ci/ci.mk"
+  fi
+
+  if [ ! -f "$root/Makefile" ]; then
+    cp "$KIT_ROOT/templates/Makefile" "$root/Makefile"
+    ci_ok "created Makefile"
+  else
+    ci_dim "Makefile already exists — left alone"
+  fi
+
+  if [ ! -f "$root/.actrc" ]; then
+    cp "$KIT_ROOT/templates/actrc" "$root/.actrc"
+    ci_ok "created .actrc"
+  fi
+
+  if [ ! -f "$root/.env.act.example" ] && [ ! -f "$root/.env.act" ]; then
+    cp "$KIT_ROOT/templates/env.act.example" "$root/.env.act.example"
+    ci_ok "created .env.act.example"
+  fi
+
+  if [ ! -f "$root/.ci/ci.json" ]; then
+    cp "$KIT_ROOT/templates/ci.json.example" "$root/.ci/ci.json"
+    ci_ok "created .ci/ci.json"
+  fi
+
+  if [ "$vendor" = "1" ]; then
+    mkdir -p "$root/.ci/kit"
+    cp -R "$KIT_ROOT/lib" "$KIT_ROOT/make" "$KIT_ROOT/bin" "$root/.ci/kit/"
+    cp "$KIT_ROOT/VERSION" "$root/.ci/kit/VERSION" 2>/dev/null || true
+    chmod +x "$root/.ci/kit/bin/ci"
+    ci_ok "vendored the kit into .ci/kit — the repository is now self-contained"
+  fi
+
+  if ! grep -q '^.act-artifacts/' "$root/.gitignore" 2>/dev/null; then
+    printf '\n# Local CI kit\n.act-artifacts/\n.env.act\n.secrets\n' >> "$root/.gitignore"
+    ci_ok "added the kit's entries to .gitignore"
+  fi
+
+  ci_ok "done — run 'make ci' inside $root"
+}
+
+# ----------------------------------------------------------------- config ---
+
+cmd_config() {
+  local config_file; config_file="$(ci_config_path "$CI_ROOT")"
+  ci_log "repository:    $CI_ROOT"
+  ci_log "kit:           $(ci_kit_root)"
+  ci_log "version:       $(ci_kit_version)"
+  ci_log "config file:   $([ -f "$config_file" ] && echo "$config_file" || echo "(none)")"
+  ci_log "stacks:        $(ci_detect_stacks "$CI_ROOT" | tr '\n' ' ')"
+  ci_log "act image:     $(ci_config 'config.act && config.act.image' "$CI_ACT_DEFAULT_IMAGE")"
+  ci_log "act env file:  $(ci_act_env_file "$CI_ROOT")"
+  ci_log "gate script:   $([ -f "$CI_ROOT/scripts/ci/gate.sh" ] && echo "$CI_ROOT/scripts/ci/gate.sh" || echo "(automatic)")"
+}
+
+# -------------------------------------------------------------------- env ---
+
+cmd_env() {
+  ci_log "repository:   $CI_ROOT"
+  for f in .env.act .env .secrets .env.local; do
+    if [ -e "$CI_ROOT/$f" ]; then
+      ci_log "$f: present"
+    else
+      ci_dim "$f: absent"
+    fi
+  done
+  ci_dim "act env file: $(ci_act_env_file "$CI_ROOT")"
+}
+
+# ------------------------------------------------------------------- help ---
+
+cmd_help() {
+  cat <<'HELP'
+ci — local CI kit
+
+  ci doctor                 audit the toolchain against the versions CI pins
+  ci gate [--fast]          run the local CI gate for every stack in this repo
+  ci act [workflow] [job]   run a workflow locally with act
+  ci act-list               list the workflows and their jobs
+  ci services up|down|status|logs
+                            manage the local service containers
+  ci hooks install|uninstall|status
+                            wire the pre-push gate
+  ci init [--vendor]        scaffold the kit into the current repository
+  ci config                 show the resolved configuration
+  ci env                    show the env files that feed the local runs
+  ci version                print the kit version
+HELP
+}
+
+# ------------------------------------------------------------------- main ---
+
+cmd="${1:-help}"
+[ "$#" -gt 0 ] && shift || true
+
+case "$cmd" in
+  doctor)   cmd_doctor "$@" ;;
+  gate)     cmd_gate "$@" ;;
+  act)      cmd_act_run "$@" ;;
+  act-list) cmd_act_list "$@" ;;
+  services) cmd_services "$@" ;;
+  hooks)    cmd_hooks "$@" ;;
+  init)     cmd_init "$@" ;;
+  config)   cmd_config "$@" ;;
+  env)      cmd_env "$@" ;;
+  version|--version|-v) ci_kit_version ;;
+  help|--help|-h) cmd_help ;;
+  *) ci_die "unknown command: $cmd (try 'ci help')" ;;
+esac

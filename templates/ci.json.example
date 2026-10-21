@@ -1,0 +1,15 @@
+{
+  "//": "Configuration for the CI kit. Every field is optional.",
+  "//stack": "Which stacks the gate runs. Omit to detect them from the files in the repository.",
+  "stack": [],
+  "//services": "Services started by 'make services-up'. Omit for every service in the compose file.",
+  "services": [],
+  "act": {
+    "//image": "The container image act runs the workflow in.",
+    "image": "catthehacker/ubuntu:act-latest",
+    "//envFile": "The env file act reads. Kept apart from the project's own .env.",
+    "envFile": ".env.act",
+    "//secretFile": "The secrets file act reads.",
+    "secretFile": ".secrets"
+  }
+}

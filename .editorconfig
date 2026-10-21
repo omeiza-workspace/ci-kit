@@ -1,0 +1,8 @@
+root = true
+
+[*.sh]
+shellcheck shell=bash
+shellcheck disable=SC1091
+
+[Makefile]
+indent = 4

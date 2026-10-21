@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  archive:
+    name: Archive
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the archive
+        run: |
+          version="${GITHUB_REF_NAME}"
+          tar --exclude-vcs --exclude=.git -czf "ci-kit-${version}.tar.gz" \
+            --transform "s,^\.,ci-kit-${version}," .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ci-kit
+          path: ci-kit-*.tar.gz
+
+  release:
+    name: Release
+    needs: archive
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ci-kit
+          path: artifacts
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.tar.gz
+          body: |
+            See the README for installation:
+
+            ```sh
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/bin/install.sh | sh
+            ```

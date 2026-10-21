@@ -1,0 +1,4 @@
+# The kit sources its own libraries, which shellcheck cannot follow across
+# files without a directive. The directive is in each file already; this is
+# for the edge cases.
+disable=SC2317

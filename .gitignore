@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# editors
+.idea/
+.vscode/
+*.swp
+
+# local test output
+.act-artifacts/
+.env.act
+.secrets
