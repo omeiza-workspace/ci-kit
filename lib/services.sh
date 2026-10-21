@@ -35,6 +35,8 @@ ci_services_up() {
   cmd="$(ci_compose_cmd)" || ci_die "docker compose is not available"
   file="$(ci_compose_file "$root")" || ci_die "no compose file found in $root"
   ci_log "starting services from $(basename "$file")"
+  # The command is a string because it may be two words, "docker compose".
+  # shellcheck disable=SC2086
   if [ "$#" -gt 0 ]; then
     ci_run $cmd -f "$file" up -d "$@"
   else
@@ -47,6 +49,7 @@ ci_services_down() {
   local root="${CI_ROOT:-$PWD}" file cmd
   cmd="$(ci_compose_cmd)" || ci_die "docker compose is not available"
   file="$(ci_compose_file "$root")" || ci_die "no compose file found in $root"
+  # shellcheck disable=SC2086
   if [ "$#" -gt 0 ]; then
     ci_run $cmd -f "$file" down "$@"
   else
@@ -59,6 +62,7 @@ ci_services_status() {
   local root="${CI_ROOT:-$PWD}" file cmd
   cmd="$(ci_compose_cmd)" || ci_die "docker compose is not available"
   file="$(ci_compose_file "$root")" || ci_die "no compose file found in $root"
+  # shellcheck disable=SC2086
   ci_run $cmd -f "$file" ps
 }
 

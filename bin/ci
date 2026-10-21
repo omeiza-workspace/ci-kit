@@ -189,8 +189,9 @@ cmd_gate() {
     [ -z "$stacks" ] && ci_die "stack '$only' not present in $CI_ROOT"
   fi
 
-  ci_log "stacks: $(printf '%s ' $stacks)"
-  [ "$fast" = "1" ] && ci_log "mode: fast (lint and type checks only)"
+  # The stacks are a space separated list, and this is a log line.
+  # shellcheck disable=SC2086
+  ci_log "stacks: $(printf '%s ' $stacks)"  [ "$fast" = "1" ] && ci_log "mode: fast (lint and type checks only)"
 
   local rc=0 s
 
@@ -251,6 +252,8 @@ cmd_services() {
   if [ "$sub" = "up" ] && [ "$#" -eq 0 ]; then
     local configured
     configured="$(ci_config_services)"
+    # The services are a space separated list.
+    # shellcheck disable=SC2086
     [ -n "$configured" ] && set -- $configured
   fi
   case "$sub" in
@@ -261,6 +264,7 @@ cmd_services() {
       local compose_cmd compose_file
       compose_cmd="$(ci_compose_cmd)"
       compose_file="$(ci_compose_file "$CI_ROOT")"
+      # shellcheck disable=SC2086
       ci_run $compose_cmd -f "$compose_file" logs -f "$@"
       ;;
     *)      ci_die "unknown services subcommand: $sub" ;;
@@ -302,7 +306,11 @@ HOOK
       local configured
       configured="$(git -C "$root" config core.hooksPath 2>/dev/null || echo none)"
       ci_log "core.hooksPath: $configured"
-      [ -f "$hook_file" ] && ci_log "hook file: $hook_file (present)" || ci_log "hook file: (absent)"
+      if [ -f "$hook_file" ]; then
+        ci_log "hook file: $hook_file (present)"
+      else
+        ci_log "hook file: (absent)"
+      fi
       ;;
     *) ci_die "unknown hooks subcommand: $sub" ;;
   esac
