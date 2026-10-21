@@ -112,10 +112,13 @@ ci_sed_inplace() {
 # ci_port_is_open <host> <port> — true when something is listening.
 # bash's /dev/tcp is used first: netcat is not installed everywhere, and this
 # works on every bash build since 2.0.
+#
+# The connection is opened in a subshell, so the descriptor is closed when it
+# ends. Closing it in this shell instead would leave a permanent redirection
+# behind — `exec 2>/dev/null` silences stderr for the rest of the run.
 ci_port_is_open() {
   local host="$1" port="$2"
   if (exec 3<>"/dev/tcp/${host}/${port}") 2>/dev/null; then
-    exec 3>&- 2>/dev/null || true
     return 0
   fi
   if command -v nc >/dev/null 2>&1; then

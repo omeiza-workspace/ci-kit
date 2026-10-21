@@ -4,6 +4,17 @@
   "stack": [],
   "//services": "Services started by 'make services-up'. Omit for every service in the compose file.",
   "services": [],
+  "//mocks": "The stand-ins for the outside world the tests need.",
+  "//mocks.command": "The command that starts the mock engine.",
+  "//mocks.cwd": "Where that command runs, relative to the repository.",
+  "//mocks.endpoints": "What 'make mocks-status' checks.",
+  "//mocks.assert": "When true, the gate stops if a mock is not answering. Off by default: a repository whose tests start the mocks themselves has nothing to check.",
+  "mocks": {
+    "command": "",
+    "cwd": "",
+    "assert": false,
+    "endpoints": {}
+  },
   "act": {
     "//image": "The container image act runs the workflow in.",
     "image": "catthehacker/ubuntu:act-latest",

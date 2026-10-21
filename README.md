@@ -20,6 +20,22 @@ make doctor     # is my toolchain the same as the one CI pins?
 make act W=ci.yml J=test
 ```
 
+```
+   developer                repository                    runner
+      |                        |                             |
+      |   make ci              |                             |
+      |----------------------->|                             |
+      |                        |  scripts/ci/*.sh            |
+      |                        |  the setup and the gates    |
+      |                        |         |                   |
+      |                        |         |                   |
+      |                        |         +------------------->|  .github/workflows
+      |                        |             the same script |
+      |                        |                             |
+      |   the same script, so the local run and the runner  |
+      |   cannot disagree about what the code needs         |
+```
+
 ## Why
 
 CI feedback is slow, and it is slow at the worst moment: after you have
@@ -163,6 +179,47 @@ make services-status
 
 `ci init` adds `.act-artifacts/`, `.env.act` and `.secrets` to `.gitignore`.
 
+## Mocks
+
+A test that calls a payment gateway, an email provider or an identity check
+needs something to call. A mock engine is exactly that, and the kit knows how
+to work with one without knowing what it is.
+
+```json
+{
+  "mocks": {
+    "command": "npx api-mock-services start paystack interswitch",
+    "cwd": "../api-mock-services",
+    "endpoints": {
+      "paystack": "http://127.0.0.1:4005",
+      "interswitch": "http://127.0.0.1:4006"
+    }
+  }
+}
+```
+
+```sh
+make mocks-up       # start the engine, and wait for it to answer
+make mocks-status   # which mocks are up
+make mocks-down     # stop it
+```
+
+The gate **checks** the mocks before it runs, and stops with a clear message
+if one is missing:
+
+```
+[ci] the paystack mock is not answering on http://127.0.0.1:4005
+[ci] 1 mock(s) are not running. Start them with 'make mocks-up' and run the gate again.
+```
+
+It does not start them for you. A gate that quietly starts services hides
+the reason a test failed, and the reason a test failed is the thing you are
+looking for.
+
+The kit takes no position on what a mock is or which provider it stands in
+for. That belongs to the repository that has the mocks, and to the engine
+that serves them.
+
 ## Requirements
 
 - bash 3.2 or later (that is what macOS ships; Linux distributions ship 4+)
@@ -224,6 +281,24 @@ make/ci.mk        the make targets
 templates/        what `ci init` writes into a repository
 tests/            the test suite
 ```
+
+## Extending it
+
+The kit is a set of contracts, not a framework. A repository extends it
+without asking the kit for permission:
+
+| The repository ships | The kit does |
+|---|---|
+| `scripts/ci/gate.sh` | runs it as the whole gate |
+| `scripts/ci/gate-extra.sh` | runs it after the automatic gates |
+| `scripts/ci/setup-*.sh` | nothing — the repository calls it, from the Makefile and from the workflow |
+| `.ci/ci.json` | reads the stack, the services, the mocks and the act image |
+| a `Makefile` target | nothing — `make` runs it |
+
+The rule is that the kit never needs to know about a repository, and a
+repository never needs to change the kit. A language the kit does not know
+still works: the gates are derived from what the repository contains, and a
+repository that wants something else ships its own `gate.sh`.
 
 ## Development
 

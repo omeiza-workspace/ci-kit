@@ -45,6 +45,8 @@ source "$KIT_ROOT/lib/node.sh"
 source "$KIT_ROOT/lib/php.sh"
 # shellcheck source=lib/go.sh
 source "$KIT_ROOT/lib/go.sh"
+# shellcheck source=lib/mocks.sh
+source "$KIT_ROOT/lib/mocks.sh"
 # shellcheck source=lib/act.sh
 source "$KIT_ROOT/lib/act.sh"
 
@@ -183,6 +185,13 @@ cmd_gate() {
 
   local rc=0 s
 
+  # The preflight: the mocks the tests need must be up. The kit never starts
+  # them here — a gate that starts services hides why a test failed.
+  if ! ci_mocks_assert; then
+    rc=1
+    ci_err "the gate stops here. Start the mocks with 'make mocks-up'."
+  fi
+
   # A repository that wants full control of its gate ships scripts/ci/gate.sh.
   # It lives in the repository, so it runs the same way on a laptop and on a
   # GitHub runner.
@@ -216,6 +225,16 @@ cmd_gate() {
 }
 
 # --------------------------------------------------------------- services ---
+
+cmd_mocks() {
+  local sub="${1:-status}"; shift || true
+  case "$sub" in
+    up)     ci_mocks_up "$@" ;;
+    down)   ci_mocks_down "$@" ;;
+    status) ci_mocks_status "$@" ;;
+    *)      ci_die "unknown mocks subcommand: $sub" ;;
+  esac
+}
 
 cmd_services() {
   local sub="${1:-up}"; shift || true
@@ -397,9 +416,10 @@ cmd="${1:-help}"
 case "$cmd" in
   doctor)   cmd_doctor "$@" ;;
   gate)     cmd_gate "$@" ;;
-  act)      cmd_act_run "$@" ;;
-  act-list) cmd_act_list "$@" ;;
+  act)      ci_act_run "$@" ;;
+  act-list) ci_act_list "$CI_ROOT" ;;
   services) cmd_services "$@" ;;
+  mocks)    cmd_mocks "$@" ;;
   hooks)    cmd_hooks "$@" ;;
   init)     cmd_init "$@" ;;
   config)   cmd_config "$@" ;;

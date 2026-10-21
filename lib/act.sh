@@ -43,6 +43,19 @@ ci_act_secret_file() {
   esac
 }
 
+# ci_docker_host — the Docker endpoint this machine talks to.
+# OrbStack, Colima, Rancher Desktop and Docker Desktop with a non-default
+# socket do not use /var/run/docker.sock, and act needs to be told.
+ci_docker_host() {
+  if [ -n "${DOCKER_HOST:-}" ]; then
+    printf '%s\n' "$DOCKER_HOST"
+    return 0
+  fi
+  if ci_have docker; then
+    docker context inspect --format '{{ .Endpoints.docker.Host }}' 2>/dev/null | head -1
+  fi
+}
+
 # ci_act_run [workflow-file] [job] [-- extra act flags]
 ci_act_run() {
   local root="${CI_ROOT:-$PWD}" workflow="" job=""
@@ -52,6 +65,13 @@ ci_act_run() {
   ci_require act "Install act: brew install act"
   [ -d "$root/.github/workflows" ] || ci_die "no .github/workflows directory in $root"
 
+  # Point act at the same daemon the docker CLI talks to.
+  local docker_host
+  docker_host="$(ci_docker_host)"
+  if [ -n "$docker_host" ]; then
+    export DOCKER_HOST="$docker_host"
+  fi
+
   # The architecture is left to the Docker daemon's default, which is what
   # act does anyway and what works with Podman and Colima too.
   local -a args=(--bind --pull=false)
@@ -60,6 +80,17 @@ ci_act_run() {
   local secret_file
   secret_file="$(ci_act_secret_file "$root")"
   [ -f "$secret_file" ] && args+=(--secret-file "$secret_file")
+
+  # act mounts /var/run/docker.sock into the container by default. When the
+  # daemon listens somewhere else, that mount has to point at the real socket.
+  case "$docker_host" in
+    unix://*)
+      local socket="${docker_host#unix://}"
+      if [ "$socket" != "/var/run/docker.sock" ]; then
+        args+=(--container-daemon-socket "unix://${socket}")
+      fi
+      ;;
+  esac
 
   # Only force a platform image when neither the repository nor the home
   # directory already maps one.

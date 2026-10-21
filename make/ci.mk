@@ -12,7 +12,7 @@ CI := $(CI_BIN)
 # CI_KIT_SKIP_COMMON=1 before the include, and keeps both.
 CI_KIT_SKIP_COMMON ?= 0
 
-.PHONY: ci-fast doctor act act-list services-up services-down services-status hooks-install hooks-uninstall env config
+.PHONY: ci-fast doctor act act-list services-up services-down services-status mocks-up mocks-down mocks-status hooks-install hooks-uninstall env config
 
 ifneq ($(CI_KIT_SKIP_COMMON),1)
 
@@ -53,6 +53,15 @@ services-down: ## Stop the local service containers
 
 services-status: ## Show the local service containers
 	@$(CI) services status
+
+mocks-up: ## Start the mock services the tests need
+	@$(CI) mocks up
+
+mocks-down: ## Stop the mock services
+	@$(CI) mocks down
+
+mocks-status: ## Show whether the mock services are answering
+	@$(CI) mocks status
 
 hooks-install: ## Install the pre-push gate
 	@$(CI) hooks install
