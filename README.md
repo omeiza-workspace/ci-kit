@@ -1,6 +1,11 @@
 # CI Kit
 
-Run your CI on your laptop, before you push.
+[![CI](https://github.com/omeiza-workspace/ci-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/omeiza-workspace/ci-kit/actions/workflows/ci.yml)
+[![ShellCheck](https://img.shields.io/badge/shellcheck-passing-brightgreen.svg)](https://github.com/koalaman/shellcheck)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/omeiza-workspace/ci-kit.svg)](https://github.com/omeiza-workspace/ci-kit/releases/latest)
+
+**Run your CI on your laptop, before you push.**
 
 CI Kit gives a repository a local gate that mirrors what the GitHub Actions
 workflows do: the same installs, the same linters, the same type checks, the
@@ -20,6 +25,20 @@ make doctor     # is my toolchain the same as the one CI pins?
 make act W=ci.yml J=test
 ```
 
+## Why
+
+CI feedback is slow, and it is slow at the worst moment: after you have
+already pushed. A gate that runs in ninety seconds on your machine turns a
+five-minute round trip into a coffee break, and it catches the class of
+failure that CI is worst at — the one that only happens on a fresh clone.
+
+The hard part is not running the commands. It is keeping the local run and
+the CI run from drifting apart. That is what this kit is for: the setup
+steps live in the repository, in `scripts/ci/`, and both the Makefile and the
+workflow call them.
+
+## How it works
+
 ```
    developer                repository                    runner
       |                        |                             |
@@ -36,17 +55,7 @@ make act W=ci.yml J=test
       |   cannot disagree about what the code needs         |
 ```
 
-## Why
-
-CI feedback is slow, and it is slow at the worst moment: after you have
-already pushed. A gate that runs in ninety seconds on your machine turns a
-five-minute round trip into a coffee break, and it catches the class of
-failure that CI is worst at — the one that only happens on a fresh clone.
-
-The hard part is not running the commands. It is keeping the local run and
-the CI run from drifting apart. That is what this kit is for: the setup
-steps live in the repository, in `scripts/ci/`, and both the Makefile and the
-workflow call them.
+There is one copy of the setup. It cannot disagree with itself.
 
 ## Install
 
@@ -141,7 +150,12 @@ Use `make ci` for the fast loop.
 {
   "stack": ["node"],
   "services": ["mysql", "redis"],
-  "composeFile": "docker-compose.yml",
+  "mocks": {
+    "command": "node bin/api-mock-services.js start paystack",
+    "cwd": "../api-mock-services",
+    "assert": false,
+    "endpoints": { "paystack": "http://127.0.0.1:4005" }
+  },
   "act": {
     "image": "catthehacker/ubuntu:act-latest",
     "envFile": ".env.act",
@@ -149,23 +163,6 @@ Use `make ci` for the fast loop.
   }
 }
 ```
-
-## Keeping the local run and CI honest
-
-The failure mode of every tool like this is drift: the local gate passes and
-CI fails, so people stop trusting the gate. Three things prevent it here.
-
-**The setup lives in the repository.** `scripts/ci/setup-laravel.sh` and
-friends are called by both the Makefile and the workflow. There is one copy
-of the setup, so it cannot disagree with itself.
-
-**`ci doctor` compares the toolchain with the pins.** If the workflows pin
-PHP 8.3 and the machine has PHP 8.4, the doctor says so, instead of leaving
-you to guess why the results differ.
-
-**The version pin is a file.** `.nvmrc` or the `engines` field in
-`package.json` tells the doctor which Node the project expects, and gives
-you the exact `nvm use` command to run.
 
 ## Services
 
@@ -185,27 +182,14 @@ A test that calls a payment gateway, an email provider or an identity check
 needs something to call. A mock engine is exactly that, and the kit knows how
 to work with one without knowing what it is.
 
-```json
-{
-  "mocks": {
-    "command": "npx api-mock-services start paystack interswitch",
-    "cwd": "../api-mock-services",
-    "endpoints": {
-      "paystack": "http://127.0.0.1:4005",
-      "interswitch": "http://127.0.0.1:4006"
-    }
-  }
-}
-```
-
 ```sh
 make mocks-up       # start the engine, and wait for it to answer
 make mocks-status   # which mocks are up
 make mocks-down     # stop it
 ```
 
-The gate **checks** the mocks before it runs, and stops with a clear message
-if one is missing:
+The gate **can** check the mocks before it runs, with `"assert": true`, and
+stops with a clear message if one is missing:
 
 ```
 [ci] the paystack mock is not answering on http://127.0.0.1:4005
@@ -220,13 +204,22 @@ The kit takes no position on what a mock is or which provider it stands in
 for. That belongs to the repository that has the mocks, and to the engine
 that serves them.
 
-## Requirements
+## Keeping the local run and CI honest
 
-- bash 3.2 or later (that is what macOS ships; Linux distributions ship 4+)
-- node (the kit reads `package.json` and `composer.json` with it)
-- docker, for the services and for act
-- the toolchain of the stack you are working in
-- [act](https://github.com/nektos/act), for the workflow runs
+The failure mode of every tool like this is drift: the local gate passes and
+CI fails, so people stop trusting the gate. Three things prevent it here.
+
+**The setup lives in the repository.** `scripts/ci/setup-laravel.sh` and
+friends are called by both the Makefile and the workflow. There is one copy
+of the setup, so it cannot disagree with itself.
+
+**`ci doctor` compares the toolchain with the pins.** If the workflows pin
+PHP 8.3 and the machine has PHP 8.4, the doctor says so, instead of leaving
+you to guess why the results differ. It also warns when `act` is too old.
+
+**The version pin is a file.** `.nvmrc` or the `engines` field in
+`package.json` tells the doctor which Node the project expects, and gives
+you the exact `nvm use` command to run.
 
 ## Platform support
 
@@ -240,6 +233,7 @@ rather than assumed:
 | `sed -i` without a suffix argument (BSD) and with one (GNU) | handled | handled | handled |
 | `/dev/tcp` for the port checks, so netcat is not required | yes | yes | yes |
 | `docker compose` and `docker-compose` | both detected | both detected | both detected |
+| a Docker socket that is not `/var/run/docker.sock` (OrbStack, Colima, Rancher Desktop) | handled | handled | handled |
 | the container architecture is the daemon's default, so Apple Silicon and arm64 servers both work | yes | yes | yes |
 
 Windows without WSL2 or Git Bash is not supported. The kit needs a POSIX
@@ -255,8 +249,7 @@ docker build -f docker/Dockerfile -t ci-kit .
 docker run --rm -v "$PWD:/work" -v /var/run/docker.sock:/var/run/docker.sock ci-kit gate
 ```
 
-`docker/Dockerfile.toolbox` adds PHP 8.3, Composer 2, Node 22 and Go 1.23,
-matching the versions the workflows in this workspace pin:
+`docker/Dockerfile.toolbox` adds PHP 8.3, Composer 2, Node 22 and Go 1.23:
 
 ```sh
 docker build -f docker/Dockerfile.toolbox -t ci-kit:toolbox .
@@ -270,17 +263,6 @@ container buys nothing.
 Note that a repository's `node_modules` and `vendor` directories are built
 for the host platform. Inside a Linux container on a Mac, let the gate
 reinstall them — `npm ci` and `composer install` do that as part of the run.
-
-## Layout
-
-```
-bin/ci            the command line interface
-bin/install.sh    the installer
-lib/              the gates, one file per concern
-make/ci.mk        the make targets
-templates/        what `ci init` writes into a repository
-tests/            the test suite
-```
 
 ## Extending it
 
@@ -300,6 +282,14 @@ repository never needs to change the kit. A language the kit does not know
 still works: the gates are derived from what the repository contains, and a
 repository that wants something else ships its own `gate.sh`.
 
+## What it does not do
+
+- It does not replace your CI. The workflows stay the source of truth.
+- It does not run services for you. `make services-up` and `make mocks-up`
+  are explicit, and the gate tells you what is missing.
+- It does not migrate your workflows. It makes them cheap to try.
+- It does not work without Docker for the parts that need containers.
+
 ## Development
 
 ```sh
@@ -307,7 +297,26 @@ tests/run.sh              # the test suite
 docker run --rm -v "$PWD:/mnt" koalaman/shellcheck:stable   # lint
 ```
 
-The kit lints itself with ShellCheck in CI, on Ubuntu and macOS.
+The kit lints itself with ShellCheck in CI, on Ubuntu and macOS. The test
+suite is plain bash on purpose: a contributor should be able to run it
+without installing a framework.
+
+Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Security: [SECURITY.md](SECURITY.md).
+
+## Support the project
+
+CI Kit is maintained in the open, and it costs time.
+
+If it has saved you the "commit, push, wait, fail" loop, or given your team
+back an hour a week of runner minutes, consider sponsoring the maintenance
+through [GitHub Sponsors](https://github.com/sponsors/omeiza-workspace).
+
+There is no paid tier and nothing is gated: the kit stays MIT, and every
+feature in it stays free. Sponsorship pays for the time spent on issues,
+the platforms it runs on, and the releases.
+
+If sponsoring is not your thing, a star, an issue report, or a pull request
+that fixes something is worth just as much.
 
 ## Licence
 

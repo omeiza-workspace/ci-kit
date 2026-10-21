@@ -1,0 +1,28 @@
+name: Feature request
+description: Something the kit should be able to do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do that the kit does not make possible?
+      placeholder: |
+        Every repository in our workspace has a Laravel backend in a
+        sibling repository, and the local gate has to check out that
+        repository before it can run the tests.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you have tried instead
+      description: Including a script you wrote yourself — that is often the best starting point.

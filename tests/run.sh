@@ -91,6 +91,8 @@ source "$KIT_ROOT/lib/common.sh"
 source "$KIT_ROOT/lib/config.sh"
 # shellcheck source=lib/stack.sh
 source "$KIT_ROOT/lib/stack.sh"
+# shellcheck source=lib/mocks.sh
+source "$KIT_ROOT/lib/mocks.sh"
 
 FILTER="${1:-}"
 for file in "$TESTS_DIR"/*.test.sh; do

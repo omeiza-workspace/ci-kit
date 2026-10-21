@@ -128,6 +128,12 @@ ci_port_is_open() {
   return 1
 }
 
+# ci_version_lt <a> <b> — true when version a is older than version b.
+ci_version_lt() {
+  [ "$1" = "$2" ] && return 1
+  [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" = "$1" ]
+}
+
 # ci_wait_port <host> <port> <timeout seconds>
 ci_wait_port() {
   local host="$1" port="$2" timeout="${3:-60}" waited=0

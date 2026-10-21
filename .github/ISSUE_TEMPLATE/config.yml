@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/omeiza-workspace/ci-kit/discussions
+    about: Ask how to use the kit, or how to extend it for your stack.
+  - name: Security problem
+    url: https://github.com/omeiza-workspace/ci-kit/security/advisories/new
+    about: Report a vulnerability privately. Please do not open a public issue.

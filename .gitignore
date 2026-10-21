@@ -10,3 +10,8 @@
 .act-artifacts/
 .env.act
 .secrets
+
+# the mock services' state
+.mocks.log
+.mocks.pid
+.mocks.json

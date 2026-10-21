@@ -1,0 +1,63 @@
+name: Bug report
+description: Something in CI Kit does not do what it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. The more precise the
+        report, the faster it gets fixed.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you do, and what did the kit do instead?
+      placeholder: |
+        I ran `make ci` in a repository with a package.json and a
+        composer.json. The kit detected the node stack and ran the type
+        check, then stopped with...
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: The output
+      description: The terminal output, with anything private removed.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: CI Kit version
+      placeholder: ci version
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS
+        - Linux
+        - WSL2
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: repository
+    attributes:
+      label: The repository, if it is public
+      description: A link is enough. A private repository is fine too — describe the setup instead.

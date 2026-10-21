@@ -56,4 +56,8 @@ case ":$PATH:" in
   *) say "note: $BIN_DIR is not on your PATH — add it to your shell profile" ;;
 esac
 
-say "done. Run 'ci --version', then 'cd <your repo> && ci init'."
+printf '\n'
+say "CI Kit is installed. To use it:"
+say "  cd your-repository && ci init && make ci"
+say "The installer wrote to $PREFIX. To uninstall, remove that directory and the link in $BIN_DIR."
+printf '\n'

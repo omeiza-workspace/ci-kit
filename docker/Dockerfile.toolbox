@@ -21,12 +21,16 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
-# The extensions Laravel and the test suites expect. The development
-# libraries are needed to build them, and are removed afterwards.
+# The extensions Laravel and the test suites expect.
 #
 # Two notes from the PHP source tree: sqlite3 is not a buildable extension in
 # PHP 8.3, so the PDO driver is installed instead — that is what Laravel
 # actually uses — and mbstring is already compiled into the image.
+#
+# The development libraries are kept. Purging them takes the runtime
+# libraries with them (libzip4 is an automatic dependency of libzip-dev),
+# and an extension that cannot load is worse than a few megabytes of
+# headers.
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
@@ -35,9 +39,6 @@ RUN set -eux; \
         libssl-dev libsqlite3-dev; \
     docker-php-ext-install -j"$(nproc)" \
         xml curl zip pcntl pdo_mysql pdo_sqlite intl; \
-    apt-get purge -y --auto-remove \
-        libxml2-dev libcurl4-openssl-dev libzip-dev libicu-dev libonig-dev \
-        libssl-dev libsqlite3-dev; \
     rm -rf /var/lib/apt/lists/*
 
 COPY . /opt/ci-kit

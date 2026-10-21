@@ -53,6 +53,9 @@ source "$KIT_ROOT/lib/act.sh"
 CI_ROOT="$(ci_repo_root "$PWD")"
 export CI_ROOT
 
+# act 0.2.68 and older carry two published advisories.
+CI_ACT_MIN_VERSION="${CI_ACT_MIN_VERSION:-0.2.86}"
+
 # ---------------------------------------------------------------- doctor ---
 
 cmd_doctor() {
@@ -79,7 +82,13 @@ cmd_doctor() {
   fi
 
   if ci_have act; then
-    ci_ok "act       $(act --version 2>/dev/null | head -1)"
+    local act_version
+    act_version="$(act --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+    ci_ok "act       ${act_version:-unknown}"
+    # act 0.2.68 and older carry two published advisories.
+    if [ -n "$act_version" ] && ci_version_lt "$act_version" "$CI_ACT_MIN_VERSION"; then
+      ci_warn "act       $act_version is older than $CI_ACT_MIN_VERSION — upgrade it (brew upgrade act)"
+    fi
   else
     ci_warn "act       missing (brew install act) — the act targets will not run"
   fi

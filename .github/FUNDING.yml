@@ -1,0 +1,6 @@
+# The buttons GitHub shows at the top of the repository.
+#
+# Only accounts that actually exist are listed. A sponsor button that
+# leads to a page 404 is worse than no button at all.
+
+github: [omeiza-workspace]
