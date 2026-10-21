@@ -134,7 +134,7 @@ five seconds apart for CPU. The containers were started with
 `docker compose up -d` and sampled with `docker stats --no-stream`, once
 immediately and once after they had settled.
 
-The numbers are now a build gate: `test/footprint.sh` measures the engine
+The numbers are now a build gate: `scripts/footprint.js` measures the engine
 and fails when it exceeds 100 MB, 5 s of startup, or 1% idle CPU. A promise
 nobody checks erodes; this one is checked on every build.
 
