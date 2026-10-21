@@ -52,7 +52,9 @@ ci_act_run() {
   ci_require act "Install act: brew install act"
   [ -d "$root/.github/workflows" ] || ci_die "no .github/workflows directory in $root"
 
-  local -a args=(--bind --pull=false --container-architecture "$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')")
+  # The architecture is left to the Docker daemon's default, which is what
+  # act does anyway and what works with Podman and Colima too.
+  local -a args=(--bind --pull=false)
   args+=(--env-file "$(ci_act_env_file "$root")")
 
   local secret_file
@@ -61,7 +63,8 @@ ci_act_run() {
 
   # Only force a platform image when neither the repository nor the home
   # directory already maps one.
-  if ! grep -qE '^\s*-P\s' "$root/.actrc" 2>/dev/null && ! grep -qE '^\s*-P\s' "$HOME/.actrc" 2>/dev/null; then
+  if ! grep -qE '^[[:space:]]*-P[[:space:]]' "$root/.actrc" 2>/dev/null \
+     && ! grep -qE '^[[:space:]]*-P[[:space:]]' "$HOME/.actrc" 2>/dev/null; then
     args+=(-P "ubuntu-latest=$(ci_act_image)")
   fi
 

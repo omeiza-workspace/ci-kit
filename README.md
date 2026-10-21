@@ -165,11 +165,54 @@ make services-status
 
 ## Requirements
 
-- bash 3.2 or later
+- bash 3.2 or later (that is what macOS ships; Linux distributions ship 4+)
 - node (the kit reads `package.json` and `composer.json` with it)
 - docker, for the services and for act
 - the toolchain of the stack you are working in
 - [act](https://github.com/nektos/act), for the workflow runs
+
+## Platform support
+
+The kit is a bash program with no compiled parts, and it runs the same on
+macOS, Linux and WSL2. The differences between the platforms are handled
+rather than assumed:
+
+| | macOS | Linux | WSL2 |
+|---|---|---|---|
+| bash 3.2 (macOS) and 4+ (Linux) | yes | yes | yes |
+| `sed -i` without a suffix argument (BSD) and with one (GNU) | handled | handled | handled |
+| `/dev/tcp` for the port checks, so netcat is not required | yes | yes | yes |
+| `docker compose` and `docker-compose` | both detected | both detected | both detected |
+| the container architecture is the daemon's default, so Apple Silicon and arm64 servers both work | yes | yes | yes |
+
+Windows without WSL2 or Git Bash is not supported. The kit needs a POSIX
+shell.
+
+## Running the kit in a container
+
+For a machine that should not be changed, or for a container-based
+development environment, the kit ships images:
+
+```sh
+docker build -f docker/Dockerfile -t ci-kit .
+docker run --rm -v "$PWD:/work" -v /var/run/docker.sock:/var/run/docker.sock ci-kit gate
+```
+
+`docker/Dockerfile.toolbox` adds PHP 8.3, Composer 2, Node 22 and Go 1.23,
+matching the versions the workflows in this workspace pin:
+
+```sh
+docker build -f docker/Dockerfile.toolbox -t ci-kit:toolbox .
+docker run --rm -v "$PWD:/work" -v /var/run/docker.sock:/var/run/docker.sock ci-kit:toolbox gate
+```
+
+The Docker socket is mounted so the container drives the host's daemon: the
+services and act both need a real daemon, and nesting one inside the
+container buys nothing.
+
+Note that a repository's `node_modules` and `vendor` directories are built
+for the host platform. Inside a Linux container on a Mac, let the gate
+reinstall them — `npm ci` and `composer install` do that as part of the run.
 
 ## Layout
 

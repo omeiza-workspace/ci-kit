@@ -16,7 +16,7 @@ CI_KIT_SKIP_COMMON ?= 0
 
 ifneq ($(CI_KIT_SKIP_COMMON),1)
 
-.PHONY: help ci
+.PHONY: help ci ci-fast
 
 help: ## Show the available targets
 	@printf '\n\033[1;36mTargets\033[0m\n'
@@ -28,10 +28,10 @@ help: ## Show the available targets
 ci: ## Run the full local CI gate (every stack in this repository)
 	@$(CI) gate
 
-endif
-
 ci-fast: ## Run the fast gate — lint and type checks only, no installs or services
 	@$(CI) gate --fast
+
+endif
 
 doctor: ## Audit the toolchain against the versions the workflows pin
 	@$(CI) doctor

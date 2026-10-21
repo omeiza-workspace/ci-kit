@@ -1,0 +1,44 @@
+# syntax=docker/dockerfile:1
+#
+# The kit in a container, with the toolchains for every stack the kit
+# supports: PHP 8.3, Composer 2, Node 22 and Go 1.23. The versions match
+# what the workflows in this workspace pin.
+#
+#   docker build -f docker/Dockerfile.toolbox -t ci-kit:toolbox .
+#   docker run --rm -v "$PWD:/work" -v /var/run/docker.sock:/var/run/docker.sock ci-kit:toolbox gate
+
+FROM php:8.3-cli-bookworm
+
+# Node
+COPY --from=node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:22-bookworm-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
+
+# Go
+COPY --from=golang:1.23-bookworm /usr/local/go /usr/local/go
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+# Composer
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+
+# The extensions Laravel and the test suites expect. The development
+# libraries are needed to build them, and are removed afterwards.
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        bash ca-certificates curl git make unzip \
+        libzip-dev libicu-dev libonig-dev libssl-dev \
+        libcurl4-openssl-dev libxml2-dev; \
+    docker-php-ext-install -j"$(nproc)" mbstring xml curl sqlite3 zip pcntl; \
+    apt-get purge -y --auto-remove \
+        libzip-dev libicu-dev libonig-dev libssl-dev libcurl4-openssl-dev libxml2-dev; \
+    rm -rf /var/lib/apt/lists/*
+
+COPY . /opt/ci-kit
+RUN ln -s /opt/ci-kit /usr/local/share/ci-kit \
+ && ln -s /opt/ci-kit/bin/ci /usr/local/bin/ci \
+ && chmod +x /opt/ci-kit/bin/ci
+
+WORKDIR /work
+ENTRYPOINT ["ci"]
+CMD ["gate"]

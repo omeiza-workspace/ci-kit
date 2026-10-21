@@ -58,6 +58,15 @@ cmd_doctor() {
 
   ci_section "Toolchain"
 
+  # bash 3.2 is the oldest version the kit supports: it is what macOS ships.
+  local bash_version="${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"
+  if [ "${BASH_VERSINFO[0]}" -lt 3 ] || { [ "${BASH_VERSINFO[0]}" -eq 3 ] && [ "${BASH_VERSINFO[1]}" -lt 2 ]; }; then
+    ci_err "bash      $bash_version is too old — 3.2 or later is required"
+    rc=1
+  else
+    ci_ok "bash      $bash_version"
+  fi
+
   if ci_have docker; then
     local server
     server="$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo '?')"

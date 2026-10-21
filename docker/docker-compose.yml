@@ -1,0 +1,19 @@
+# An example of running the kit in a container.
+#
+#   docker compose -f docker/docker-compose.yml run --rm ci gate
+#
+# The repository is mounted at /work, and the host's Docker socket is passed
+# through so the kit can start services and run act against the host daemon.
+
+services:
+  ci:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.toolbox
+    image: ci-kit:toolbox
+    working_dir: /work
+    volumes:
+      - ..:/work
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOME}/.gitconfig:/root/.gitconfig:ro
+    command: ["gate"]

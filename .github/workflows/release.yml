@@ -17,8 +17,8 @@ jobs:
       - name: Build the archive
         run: |
           version="${GITHUB_REF_NAME}"
-          tar --exclude-vcs --exclude=.git -czf "ci-kit-${version}.tar.gz" \
-            --transform "s,^\.,ci-kit-${version}," .
+          git archive --format=tar.gz --prefix="ci-kit-${version}/" \
+            -o "ci-kit-${version}.tar.gz" HEAD
       - uses: actions/upload-artifact@v4
         with:
           name: ci-kit

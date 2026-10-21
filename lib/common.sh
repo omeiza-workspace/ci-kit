@@ -97,11 +97,39 @@ ci_composer_script() {
   ' "$1" "$2" 2>/dev/null
 }
 
+# ci_sed_inplace <sed expression> <file> — edit a file in place.
+# GNU sed and BSD sed disagree about the argument to -i, so the difference is
+# detected rather than assumed.
+ci_sed_inplace() {
+  local expression="$1" file="$2"
+  if sed --version >/dev/null 2>&1; then
+    sed -i "$expression" "$file"
+  else
+    sed -i '' "$expression" "$file"
+  fi
+}
+
+# ci_port_is_open <host> <port> — true when something is listening.
+# bash's /dev/tcp is used first: netcat is not installed everywhere, and this
+# works on every bash build since 2.0.
+ci_port_is_open() {
+  local host="$1" port="$2"
+  if (exec 3<>"/dev/tcp/${host}/${port}") 2>/dev/null; then
+    exec 3>&- 2>/dev/null || true
+    return 0
+  fi
+  if command -v nc >/dev/null 2>&1; then
+    nc -z "$host" "$port" >/dev/null 2>&1
+    return $?
+  fi
+  return 1
+}
+
 # ci_wait_port <host> <port> <timeout seconds>
 ci_wait_port() {
   local host="$1" port="$2" timeout="${3:-60}" waited=0
   while [ "$waited" -lt "$timeout" ]; do
-    if nc -z "$host" "$port" >/dev/null 2>&1; then
+    if ci_port_is_open "$host" "$port"; then
       return 0
     fi
     sleep 1
