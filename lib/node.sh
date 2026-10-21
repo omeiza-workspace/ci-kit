@@ -11,10 +11,32 @@ ci_node_install() {
   local root="${1:-$PWD}"
   ci_require npm "Install Node.js (nvm, volta or asdf)."
   if [ -f "$root/package-lock.json" ]; then
-    ci_run npm ci
+    # 'npm ci' removes the old tree itself before it installs, and on macOS
+    # that removal fails with ENOTEMPTY often enough to make the gate
+    # unreliable — the run dies on a directory npm could not empty. Removing
+    # the tree first makes the install deterministic. The removal can fail
+    # the same way, so it is given a second attempt, and anything it leaves
+    # behind is still removed by npm's own cleanup.
+    ci_node_clear "$root"
+    if ! ci_run npm ci; then
+      ci_warn "npm ci failed; clearing node_modules and trying again"
+      ci_node_clear "$root"
+      ci_run npm ci
+    fi
   else
     ci_run npm install
   fi
+}
+
+# ci_node_clear [root] — remove node_modules, twice, ignoring failures.
+#
+# The second attempt is not redundant: the first one can leave a directory
+# behind that is "not empty" because a file was written into it while the
+# removal was walking it.
+ci_node_clear() {
+  local root="${1:-$PWD}"
+  rm -rf "$root/node_modules" 2>/dev/null || true
+  rm -rf "$root/node_modules" 2>/dev/null || true
 }
 
 # ci_node_version_pin <root> — the Node version this project expects, if declared.
