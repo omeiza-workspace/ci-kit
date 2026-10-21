@@ -15,12 +15,12 @@ tests/run.sh
 ## Before you open a pull request
 
 ```sh
-tests/run.sh
-docker run --rm -v "$PWD:/mnt" koalaman/shellcheck:stable
+make check
 ```
 
-Both run in CI, on Ubuntu and macOS. The test suite is plain bash on purpose:
-a contributor should be able to run it without installing a framework.
+Both run in CI, on Ubuntu and macOS. The test suite is plain bash on
+purpose: a contributor should be able to run it without installing a
+framework.
 
 ## House rules
 

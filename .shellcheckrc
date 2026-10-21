@@ -1,4 +1,5 @@
-# The kit sources its own libraries, which shellcheck cannot follow across
-# files without a directive. The directive is in each file already; this is
-# for the edge cases.
-disable=SC2317
+# SC1091 is a note that shellcheck could not follow a sourced file. The kit
+# marks every source with a directive, and the local run (tests/lint.sh)
+# follows them with -x. The action in CI does not follow sources, so the
+# note is turned off here rather than left to fail a build.
+disable=SC1091

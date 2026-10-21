@@ -21,9 +21,9 @@ jobs:
             bin/install.sh
             lib/*.sh
             tests/*.sh
-          # -x follows the source directives, so the kit's own libraries are
-          # checked with the files that use them.
-          args: "-x"
+          # The local run (make lint) follows the kit's own libraries with
+          # -x. The action does not, so the note about not following them is
+          # turned off in .shellcheckrc.
 
   tests:
     name: Tests

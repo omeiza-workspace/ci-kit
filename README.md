@@ -293,13 +293,17 @@ repository that wants something else ships its own `gate.sh`.
 ## Development
 
 ```sh
-tests/run.sh              # the test suite
-docker run --rm -v "$PWD:/mnt" koalaman/shellcheck:stable   # lint
+make test           # the test suite
+make lint           # ShellCheck over the kit
+make check          # both
 ```
 
-The kit lints itself with ShellCheck in CI, on Ubuntu and macOS. The test
-suite is plain bash on purpose: a contributor should be able to run it
-without installing a framework.
+The test suite is plain bash on purpose: a contributor should be able to run
+it without installing a framework. ShellCheck is not a dependency either —
+`make lint` uses the one on your machine, or the container image when there
+is none.
+
+The kit lints itself with ShellCheck in CI, on Ubuntu and macOS.
 
 Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Security: [SECURITY.md](SECURITY.md).
 
