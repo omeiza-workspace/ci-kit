@@ -8,7 +8,7 @@
 # The Docker client is here so the container can drive the host's daemon: the
 # services and act both need it.
 
-FROM node:22-bookworm-slim AS node
+FROM node:26-bookworm-slim AS node
 
 FROM debian:bookworm-slim
 
