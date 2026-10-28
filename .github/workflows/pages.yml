@@ -31,7 +31,7 @@ jobs:
       # dependency to install — the lightest way to publish a site there is
       # to not build one.
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: "./docs"
       - id: deployment
